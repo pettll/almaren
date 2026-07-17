@@ -12,8 +12,40 @@ function sessionCookieName() {
     : "authjs.session-token";
 }
 
+// The same Sindarin/Quenya words this repo already uses for commit
+// subjects (see CONTRIBUTING.md) — attested in Tolkien's published texts
+// rather than invented, and already vetted by that convention.
+const GUEST_NAME_WORDS = [
+  "Mellon", // friend
+  "Estel", // hope
+  "Gwaith", // people, folk
+  "Tirith", // watch, guard
+  "Amon", // hill
+  "Ithil", // moon
+  "Anor", // sun
+  "Menel", // heavens
+  "Nen", // water
+  "Ered", // mountains
+  "Dor", // land
+  "Tol", // isle
+  "Taur", // forest
+  "Cened", // sight
+  "Parf", // book
+  "Lam", // tongue
+  "Cuil", // life
+  "Echuir", // stirring, spring
+  "Minno", // enter
+  "Ephel", // fence, enclosure
+  "Suilad", // greeting
+  "Hen", // eye
+  "Echad", // camp
+  "Bar", // home
+];
+
 function randomGuestName() {
-  return `Guest-${randomBytes(3).toString("hex")}`;
+  const word =
+    GUEST_NAME_WORDS[Math.floor(Math.random() * GUEST_NAME_WORDS.length)];
+  return `${word}-${randomBytes(2).toString("hex")}`;
 }
 
 // Creates a throwaway guest User + Session directly in the same tables
