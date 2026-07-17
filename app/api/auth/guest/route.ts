@@ -37,6 +37,7 @@ export async function POST() {
     id: user.id,
     name: user.name,
     isGuest: true,
+    docs: "/api/docs/agents",
   });
 
   response.cookies.set(sessionCookieName(), token, {

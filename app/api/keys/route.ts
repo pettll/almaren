@@ -32,6 +32,7 @@ export async function POST(request: Request) {
     apiKey: plaintext,
     warning: "Save this key now. It will not be shown again.",
     entityId: entity.id,
+    docs: "/api/docs/agents",
   });
 }
 

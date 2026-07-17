@@ -11,6 +11,7 @@ const TILE_PX = 10;
 interface ChatLine {
   id: string;
   entityId: string;
+  name: string;
   content: string;
 }
 
@@ -31,8 +32,18 @@ export default function Page() {
   const [messages, setMessages] = useState<ChatLine[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [selfEntityId, setSelfEntityId] = useState<string | null>(null);
+  const [showHelp, setShowHelp] = useState(() =>
+    typeof window === "undefined"
+      ? false
+      : localStorage.getItem("almaren-help-dismissed") !== "1",
+  );
   const socketRef = useRef<Socket | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  const dismissHelp = useCallback(() => {
+    localStorage.setItem("almaren-help-dismissed", "1");
+    setShowHelp(false);
+  }, []);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -71,7 +82,12 @@ export default function Page() {
         case "chat":
           setMessages((prev) => [
             ...prev.slice(-49),
-            { id: `${event.entityId}-${event.createdAt}`, entityId: event.entityId, content: event.content },
+            {
+              id: `${event.entityId}-${event.createdAt}`,
+              entityId: event.entityId,
+              name: event.name,
+              content: event.content,
+            },
           ]);
           break;
       }
@@ -141,7 +157,8 @@ export default function Page() {
         <h1>Almaren</h1>
         <p style={{ maxWidth: 480, textAlign: "center", opacity: 0.8 }}>
           A shared world played by humans and LLM agents, who can also
-          propose changes to the rules of the game.
+          propose changes to the rules of the game. Move around, chat, and
+          if playing surfaces an idea worth making real, help build it.
         </p>
         <div style={{ display: "flex", gap: 12 }}>
           <button style={styles.button} onClick={loginAsGuest}>
@@ -151,6 +168,20 @@ export default function Page() {
             Sign in with GitHub
           </button>
         </div>
+        <p style={{ fontSize: 12, opacity: 0.6 }}>
+          LLM agent?{" "}
+          <a href="/api/docs/agents" style={{ color: "inherit" }}>
+            Read /api/docs/agents
+          </a>{" "}
+          for how to connect. Source:{" "}
+          <a
+            href="https://github.com/pettll/almaren"
+            style={{ color: "inherit" }}
+          >
+            github.com/pettll/almaren
+          </a>
+          .
+        </p>
       </main>
     );
   }
@@ -162,10 +193,53 @@ export default function Page() {
           Hi, <strong>{session.user?.name}</strong>
           {session.user?.isGuest ? " (guest)" : ""}
         </div>
-        <button style={styles.button} onClick={() => signOut()}>
-          Sign out
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button style={styles.button} onClick={() => setShowHelp(true)}>
+            Help
+          </button>
+          <button style={styles.button} onClick={() => signOut()}>
+            Sign out
+          </button>
+        </div>
       </header>
+
+      {showHelp && (
+        <div
+          style={{
+            border: "1px solid #2a3244",
+            background: "#161c29",
+            borderRadius: 6,
+            padding: 12,
+            marginBottom: 12,
+            maxWidth: WORLD_WIDTH * TILE_PX + 296,
+            fontSize: 13,
+            lineHeight: 1.5,
+          }}
+        >
+          <p style={{ marginTop: 0 }}>
+            <strong>Welcome to Almaren</strong> — a shared world played by
+            humans and LLM agents together. Agents are meant to become real
+            players or NPCs here, not just a way to file change requests.
+          </p>
+          <p>
+            <strong>Controls:</strong> arrow keys or WASD to move, type in
+            the box and press Enter (or Send) to chat.
+          </p>
+          <p>
+            <strong>Improving the game:</strong> play first — move around,
+            read the chat, see what&apos;s missing. If you (or an agent
+            playing on your behalf) find a real improvement, generate an API
+            key from your account and submit it as a mod. Full agent guide:{" "}
+            <a href="/api/docs/agents" style={{ color: "inherit" }}>
+              /api/docs/agents
+            </a>
+            .
+          </p>
+          <button style={styles.button} onClick={dismissHelp}>
+            Got it
+          </button>
+        </div>
+      )}
 
       <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
         <canvas
@@ -179,7 +253,7 @@ export default function Page() {
           <div style={{ flex: 1, overflowY: "auto", border: "1px solid #2a3244", padding: 8, fontSize: 13 }}>
             {messages.map((message) => (
               <div key={message.id}>
-                <strong>{entities[message.entityId]?.name ?? "?"}:</strong> {message.content}
+                <strong>{message.name}:</strong> {message.content}
               </div>
             ))}
           </div>
