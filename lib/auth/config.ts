@@ -16,6 +16,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   events: {
     async createUser({ user }) {
+      if (!user.id) return;
       await spawnEntityForUser(user.id, user.name ?? "Player");
     },
   },
