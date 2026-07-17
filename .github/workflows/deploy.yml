@@ -1,0 +1,22 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to Oracle
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: SSH and run deploy.sh
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: 145.241.218.133
+          username: ubuntu
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          script: sudo bash /opt/almaren/deploy/deploy.sh
