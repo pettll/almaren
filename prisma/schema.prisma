@@ -86,7 +86,7 @@ model ApiKey {
 model Entity {
   id        String   @id @default(cuid())
   ownerId   String
-  kind      String   // "player" | "agent" | "npc" | "object"
+  kind      String // "player" | "agent" | "npc" | "object"
   name      String
   x         Int      @default(0)
   y         Int      @default(0)
@@ -132,11 +132,19 @@ model Mod {
   authorId    String
   name        String
   description String   @default("")
-  code        String   // sandboxed mod source, never eval'd directly
+  code        String // sandboxed mod source, never eval'd directly
   status      String   @default("pending") // "pending" | "approved" | "rejected" | "active"
   version     Int      @default(1)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  // Set once a GitHub-authenticated user converts this mod into a repo
+  // issue. convertedBy is who did it (not necessarily the mod's author —
+  // anyone with a real GitHub account can promote someone else's proposal),
+  // tracked separately so conversions can be rate-limited per user.
+  githubIssueUrl    String?
+  convertedByUserId String?
+  convertedAt       DateTime?
 
   author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
