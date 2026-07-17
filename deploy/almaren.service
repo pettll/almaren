@@ -1,0 +1,16 @@
+[Unit]
+Description=Almaren game server
+After=network.target
+
+[Service]
+Type=simple
+User=almaren
+WorkingDirectory=/opt/almaren
+EnvironmentFile=/opt/almaren/.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/npx tsx server.ts
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

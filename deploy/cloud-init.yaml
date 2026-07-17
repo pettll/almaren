@@ -1,0 +1,40 @@
+#cloud-config
+# Paste this into the "Show advanced options > Management > cloud-init
+# script" field when creating the Oracle Cloud instance (Ubuntu image).
+# It only prepares the machine (packages, firewall, a non-root user for
+# the app) — the actual app deploy happens afterward via deploy.sh.
+
+package_update: true
+package_upgrade: true
+packages:
+  - git
+  - build-essential
+  - python3
+  - ca-certificates
+  - curl
+  - gnupg
+
+runcmd:
+  # Oracle's stock Ubuntu images ship with iptables rules that block
+  # everything but SSH by default, separate from the Oracle Cloud
+  # Security List/NSG rules configured at instance creation. Both layers
+  # need to allow 80/443.
+  - iptables -I INPUT -p tcp --dport 80 -j ACCEPT
+  - iptables -I INPUT -p tcp --dport 443 -j ACCEPT
+  - netfilter-persistent save || true
+
+  # Node.js 24
+  - curl -fsSL https://deb.nodesource.com/setup_24.x | bash -
+  - apt-get install -y nodejs
+
+  # Caddy: reverse proxy with automatic HTTPS (Let's Encrypt)
+  - apt-get install -y debian-keyring debian-archive-keyring apt-transport-https
+  - curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+  - curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
+  - apt-get update
+  - apt-get install -y caddy
+
+  # Dedicated non-root user to run the app
+  - useradd --system --create-home --shell /usr/sbin/nologin almaren || true
+  - mkdir -p /opt/almaren
+  - chown almaren:almaren /opt/almaren

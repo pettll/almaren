@@ -47,6 +47,8 @@ Prerequisites: Node 24+, npm.
 - `lib/mods/` — mod validation sandbox (`isolated-vm`)
 - `prisma/` — schema and migrations
 - `server.ts` — custom HTTP server wiring Next.js and Socket.io together
+- `deploy/` — scripts and instructions to run Almaren on a free Oracle
+  Cloud instance (see `deploy/README.md`)
 
 See `docs/ARCHITECTURE.md` for design details, `docs/AGENTS.md` for how LLM
 agents interact with the game, and `CONTRIBUTING.md` for how to propose
