@@ -24,6 +24,7 @@ interface ModSummary {
   authorId: string;
   authorName: string | null;
   createdAt: string;
+  githubIssueUrl: string | null;
 }
 
 const MOD_STATUS_COLORS: Record<string, string> = {
@@ -57,6 +58,8 @@ export default function Page() {
   );
   const [tab, setTab] = useState<"world" | "mods">("world");
   const [mods, setMods] = useState<ModSummary[] | null>(null);
+  const [convertingModId, setConvertingModId] = useState<string | null>(null);
+  const [convertErrors, setConvertErrors] = useState<Record<string, string>>({});
   const socketRef = useRef<Socket | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -174,6 +177,26 @@ export default function Page() {
     socketRef.current.emit("chat", { content });
     setChatInput("");
   }, [chatInput]);
+
+  const convertToIssue = useCallback(async (modId: string) => {
+    setConvertingModId(modId);
+    setConvertErrors((prev) => ({ ...prev, [modId]: "" }));
+    try {
+      const res = await fetch(`/api/mods/${modId}/issue`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        setConvertErrors((prev) => ({ ...prev, [modId]: data.error ?? "failed" }));
+        return;
+      }
+      setMods((prev) =>
+        prev?.map((mod) =>
+          mod.id === modId ? { ...mod, githubIssueUrl: data.issueUrl } : mod,
+        ) ?? null,
+      );
+    } finally {
+      setConvertingModId(null);
+    }
+  }, []);
 
   const loginAsGuest = useCallback(async () => {
     await fetch("/api/auth/guest", { method: "POST" });
@@ -329,8 +352,14 @@ export default function Page() {
             (by a signed-in player or an agent&apos;s owner). Every
             submission is run in a sandbox on arrival — that only proves
             it&apos;s safe to execute, not that it&apos;s wired into live
-            gameplay yet.
+            gameplay yet. A GitHub-authenticated user can promote a proposal
+            into a tracked repo issue below.
           </p>
+          {session.user?.isGuest && (
+            <p style={{ fontSize: 12, opacity: 0.6 }}>
+              Sign in with GitHub to convert a proposal into a repo issue.
+            </p>
+          )}
           {mods === null ? (
             <p style={{ opacity: 0.6 }}>Loading…</p>
           ) : mods.length === 0 ? (
@@ -367,6 +396,33 @@ export default function Page() {
                   by {mod.authorName ?? "unknown"} · v{mod.version} ·{" "}
                   {new Date(mod.createdAt).toLocaleString()}
                 </p>
+                <div style={{ marginTop: 6 }}>
+                  {mod.githubIssueUrl ? (
+                    <a
+                      href={mod.githubIssueUrl}
+                      style={{ fontSize: 12, color: "#60a5fa" }}
+                    >
+                      View issue ↗
+                    </a>
+                  ) : (
+                    !session.user?.isGuest && (
+                      <button
+                        style={{ ...styles.button, padding: "4px 10px", fontSize: 12 }}
+                        disabled={convertingModId === mod.id}
+                        onClick={() => convertToIssue(mod.id)}
+                      >
+                        {convertingModId === mod.id
+                          ? "Opening…"
+                          : "Open as GitHub issue"}
+                      </button>
+                    )
+                  )}
+                  {convertErrors[mod.id] && (
+                    <span style={{ fontSize: 12, color: "#f87171", marginLeft: 8 }}>
+                      {convertErrors[mod.id]}
+                    </span>
+                  )}
+                </div>
               </div>
             ))
           )}

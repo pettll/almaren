@@ -60,6 +60,7 @@ export async function GET(request: Request) {
       version: true,
       authorId: true,
       createdAt: true,
+      githubIssueUrl: true,
       author: { select: { name: true } },
     },
     orderBy: { createdAt: "desc" },
