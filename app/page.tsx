@@ -15,6 +15,24 @@ interface ChatLine {
   content: string;
 }
 
+interface ModSummary {
+  id: string;
+  name: string;
+  description: string;
+  status: string;
+  version: number;
+  authorId: string;
+  authorName: string | null;
+  createdAt: string;
+}
+
+const MOD_STATUS_COLORS: Record<string, string> = {
+  pending: "#f2b705",
+  approved: "#4ade80",
+  active: "#60a5fa",
+  rejected: "#f87171",
+};
+
 const MOVE_KEYS: Record<string, [number, number]> = {
   ArrowUp: [0, -1],
   ArrowDown: [0, 1],
@@ -37,6 +55,8 @@ export default function Page() {
       ? false
       : localStorage.getItem("almaren-help-dismissed") !== "1",
   );
+  const [tab, setTab] = useState<"world" | "mods">("world");
+  const [mods, setMods] = useState<ModSummary[] | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -98,6 +118,19 @@ export default function Page() {
       socketRef.current = null;
     };
   }, [status]);
+
+  useEffect(() => {
+    if (tab !== "mods") return;
+    let cancelled = false;
+    fetch("/api/mods")
+      .then((res) => res.json())
+      .then((data: { mods: ModSummary[] }) => {
+        if (!cancelled) setMods(data.mods);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tab]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -194,6 +227,18 @@ export default function Page() {
           {session.user?.isGuest ? " (guest)" : ""}
         </div>
         <div style={{ display: "flex", gap: 8 }}>
+          <button
+            style={tab === "world" ? styles.buttonActive : styles.button}
+            onClick={() => setTab("world")}
+          >
+            World
+          </button>
+          <button
+            style={tab === "mods" ? styles.buttonActive : styles.button}
+            onClick={() => setTab("mods")}
+          >
+            Mods
+          </button>
           <button style={styles.button} onClick={() => setShowHelp(true)}>
             Help
           </button>
@@ -241,41 +286,92 @@ export default function Page() {
         </div>
       )}
 
-      <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
-        <canvas
-          ref={canvasRef}
-          width={WORLD_WIDTH * TILE_PX}
-          height={WORLD_HEIGHT * TILE_PX}
-          style={{ border: "1px solid #2a3244", imageRendering: "pixelated" }}
-        />
+      {tab === "world" ? (
+        <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+          <canvas
+            ref={canvasRef}
+            width={WORLD_WIDTH * TILE_PX}
+            height={WORLD_HEIGHT * TILE_PX}
+            style={{ border: "1px solid #2a3244", imageRendering: "pixelated" }}
+          />
 
-        <div style={{ display: "flex", flexDirection: "column", width: 280, height: WORLD_HEIGHT * TILE_PX }}>
-          <div style={{ flex: 1, overflowY: "auto", border: "1px solid #2a3244", padding: 8, fontSize: 13 }}>
-            {messages.map((message) => (
-              <div key={message.id}>
-                <strong>{message.name}:</strong> {message.content}
-              </div>
-            ))}
+          <div style={{ display: "flex", flexDirection: "column", width: 280, height: WORLD_HEIGHT * TILE_PX }}>
+            <div style={{ flex: 1, overflowY: "auto", border: "1px solid #2a3244", padding: 8, fontSize: 13 }}>
+              {messages.map((message) => (
+                <div key={message.id}>
+                  <strong>{message.name}:</strong> {message.content}
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 4, marginTop: 8 }}>
+              <input
+                style={{ flex: 1, padding: 6 }}
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") sendChat();
+                }}
+                placeholder="Say something..."
+              />
+              <button style={styles.button} onClick={sendChat}>
+                Send
+              </button>
+            </div>
+            <p style={{ fontSize: 12, opacity: 0.6, marginTop: 8 }}>
+              Use the arrow keys or WASD to move.
+            </p>
           </div>
-          <div style={{ display: "flex", gap: 4, marginTop: 8 }}>
-            <input
-              style={{ flex: 1, padding: 6 }}
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") sendChat();
-              }}
-              placeholder="Say something..."
-            />
-            <button style={styles.button} onClick={sendChat}>
-              Send
-            </button>
-          </div>
-          <p style={{ fontSize: 12, opacity: 0.6, marginTop: 8 }}>
-            Use the arrow keys or WASD to move.
-          </p>
         </div>
-      </div>
+      ) : (
+        <div style={{ maxWidth: WORLD_WIDTH * TILE_PX + 296 }}>
+          <p style={{ fontSize: 13, opacity: 0.7 }}>
+            Proposed rule changes, submitted via <code>POST /api/mods</code>{" "}
+            (by a signed-in player or an agent&apos;s owner). Every
+            submission is run in a sandbox on arrival — that only proves
+            it&apos;s safe to execute, not that it&apos;s wired into live
+            gameplay yet.
+          </p>
+          {mods === null ? (
+            <p style={{ opacity: 0.6 }}>Loading…</p>
+          ) : mods.length === 0 ? (
+            <p style={{ opacity: 0.6 }}>No mods proposed yet.</p>
+          ) : (
+            mods.map((mod) => (
+              <div
+                key={mod.id}
+                style={{
+                  border: "1px solid #2a3244",
+                  borderRadius: 6,
+                  padding: 10,
+                  marginBottom: 8,
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                  <strong>{mod.name}</strong>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      textTransform: "uppercase",
+                      color: MOD_STATUS_COLORS[mod.status] ?? "#e6e6e6",
+                    }}
+                  >
+                    {mod.status}
+                  </span>
+                </div>
+                {mod.description && (
+                  <p style={{ fontSize: 13, opacity: 0.8, margin: "4px 0" }}>
+                    {mod.description}
+                  </p>
+                )}
+                <p style={{ fontSize: 11, opacity: 0.5, margin: 0 }}>
+                  by {mod.authorName ?? "unknown"} · v{mod.version} ·{" "}
+                  {new Date(mod.createdAt).toLocaleString()}
+                </p>
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </main>
   );
 }
@@ -295,5 +391,12 @@ const styles = {
     border: "1px solid #2a3244",
     background: "#1c2333",
     color: "#e6e6e6",
+  },
+  buttonActive: {
+    padding: "8px 16px",
+    borderRadius: 6,
+    border: "1px solid #4ade80",
+    background: "#1c2333",
+    color: "#4ade80",
   },
 };
