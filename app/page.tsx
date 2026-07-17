@@ -85,6 +85,8 @@ export default function Page() {
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
       const delta = MOVE_KEYS[e.key];
       if (!delta || !socketRef.current) return;
       e.preventDefault();
