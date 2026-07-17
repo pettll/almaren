@@ -1,0 +1,10 @@
+# Default owner for everything in the repo.
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+* @pettll
+
+# Security-sensitive areas get the same owner today, listed explicitly so
+# it's easy to add more reviewers here later without touching the default.
+/lib/mods/sandbox.ts @pettll
+/lib/auth/ @pettll
+/app/api/agent/ @pettll
