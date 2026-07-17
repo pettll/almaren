@@ -3,6 +3,7 @@ import next from "next";
 import { Server as SocketIOServer } from "socket.io";
 import { engine } from "@/lib/game/engine";
 import { authenticateSocket } from "@/lib/game/socket-auth";
+import { WORLD_HEIGHT, WORLD_WIDTH } from "@/lib/game/world";
 
 const dev = process.env.NODE_ENV !== "production";
 const port = Number(process.env.PORT ?? 3000);
@@ -45,12 +46,22 @@ async function main() {
 
     socket.on("chat", ({ content }: { content: string }) => {
       if (!entity || typeof content !== "string") return;
-      void engine.chat(entity.id, auth.userId, content);
+      void engine.chat(entity.id, auth.userId, content).then((result) => {
+        if (result === "rate_limited") {
+          socket.emit("world-event", { type: "error", message: "rate limited, slow down" });
+        }
+      });
     });
 
     socket.on("placeTile", ({ x, y, terrain }: { x: number; y: number; terrain: string }) => {
       if (!entity || typeof terrain !== "string") return;
-      void engine.placeTile(Math.trunc(x), Math.trunc(y), terrain);
+      const clampedX = Math.trunc(x);
+      const clampedY = Math.trunc(y);
+      if (clampedX < 0 || clampedX >= WORLD_WIDTH || clampedY < 0 || clampedY >= WORLD_HEIGHT) {
+        socket.emit("world-event", { type: "error", message: "placeTile out of bounds" });
+        return;
+      }
+      void engine.placeTile(clampedX, clampedY, terrain);
     });
   });
 

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { resolveApiKeyFromHeaders } from "@/lib/auth/api-key";
 import { engine } from "@/lib/game/engine";
-import { VALID_TERRAIN } from "@/lib/game/world";
+import { VALID_TERRAIN, WORLD_HEIGHT, WORLD_WIDTH } from "@/lib/game/world";
 
 const actionSchema = z.discriminatedUnion("type", [
   z.object({
@@ -13,8 +13,8 @@ const actionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("chat"), content: z.string().min(1).max(500) }),
   z.object({
     type: z.literal("placeTile"),
-    x: z.number().int(),
-    y: z.number().int(),
+    x: z.number().int().min(0).max(WORLD_WIDTH - 1),
+    y: z.number().int().min(0).max(WORLD_HEIGHT - 1),
     terrain: z.enum(VALID_TERRAIN),
   }),
 ]);
@@ -54,6 +54,12 @@ export async function POST(request: Request) {
     }
     case "chat": {
       const event = await engine.chat(self.id, auth.userId, action.content);
+      if (event === "rate_limited") {
+        return NextResponse.json(
+          { error: "rate limited, slow down" },
+          { status: 429 },
+        );
+      }
       return NextResponse.json({ ok: true, event });
     }
     case "placeTile": {

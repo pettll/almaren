@@ -11,11 +11,29 @@ import {
   WORLD_WIDTH,
 } from "./world";
 
+const CHAT_RATE_LIMIT = 5;
+const CHAT_RATE_WINDOW_MS = 10_000;
+
 class WorldEngine extends EventEmitter {
   private entities = new Map<string, EntityState>();
   private dirty = new Set<string>();
   private tickTimer: ReturnType<typeof setInterval> | null = null;
   private loadPromise: Promise<void> | null = null;
+  private chatTimestamps = new Map<string, number[]>();
+
+  private isChatRateLimited(entityId: string): boolean {
+    const now = Date.now();
+    const recent = (this.chatTimestamps.get(entityId) ?? []).filter(
+      (t) => now - t < CHAT_RATE_WINDOW_MS,
+    );
+    if (recent.length >= CHAT_RATE_LIMIT) {
+      this.chatTimestamps.set(entityId, recent);
+      return true;
+    }
+    recent.push(now);
+    this.chatTimestamps.set(entityId, recent);
+    return false;
+  }
 
   constructor() {
     super();
@@ -105,6 +123,8 @@ class WorldEngine extends EventEmitter {
     const trimmed = content.trim().slice(0, MAX_CHAT_LENGTH);
     if (!trimmed) return null;
 
+    if (this.isChatRateLimited(entityId)) return "rate_limited" as const;
+
     await prisma.chatMessage.create({
       data: { entityId, userId, content: trimmed },
     });
@@ -155,6 +175,7 @@ class WorldEngine extends EventEmitter {
   }
 
   removeEntity(entityId: string) {
+    this.chatTimestamps.delete(entityId);
     if (this.entities.delete(entityId)) {
       this.emitEvent({ type: "despawn", entityId });
     }
@@ -194,8 +215,12 @@ class WorldEngine extends EventEmitter {
 // the agent REST API so both interfaces act on the same live world state.
 const globalForEngine = globalThis as unknown as { engine?: WorldEngine };
 
+// Always pinned to globalThis, not just in dev: the custom tsx-run
+// server.ts and Next's separately-bundled API route handlers each get
+// their own evaluation of this module even in production, so without a
+// shared globalThis reference the socket server and the REST agent API
+// end up on two different engine instances — agent actions would persist
+// to the DB but never reach the Socket.IO broadcast, so browsers would
+// only see them after a reload.
 export const engine = globalForEngine.engine ?? new WorldEngine();
-
-if (process.env.NODE_ENV !== "production") {
-  globalForEngine.engine = engine;
-}
+globalForEngine.engine = engine;
