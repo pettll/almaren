@@ -15,8 +15,14 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 if [ -d "$APP_DIR/.git" ]; then
-  echo "==> Pulling latest main"
-  sudo -u almaren git -C "$APP_DIR" pull --ff-only origin main
+  echo "==> Fetching latest main"
+  sudo -u almaren git -C "$APP_DIR" fetch origin main
+  # Hard reset rather than a fast-forward pull: this checkout only ever
+  # tracks origin/main and holds no independent commits, so it should
+  # always exactly mirror the remote. A plain --ff-only pull breaks the
+  # moment main's history is ever rewritten (e.g. a rebase to scrub
+  # something), which has happened at least once already.
+  sudo -u almaren git -C "$APP_DIR" reset --hard origin/main
 else
   echo "==> Cloning $REPO_URL"
   sudo -u almaren git clone --branch main "$REPO_URL" "$APP_DIR"
