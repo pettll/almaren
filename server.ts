@@ -32,6 +32,9 @@ async function main() {
     const entity = await engine.ensureLoaded(auth.userId, "player");
     socket.emit("world-event", { type: "self", entityId: entity?.id ?? null });
     socket.emit("world-event", { type: "tick", entities: engine.snapshot() });
+    for (const event of await engine.recentChat()) {
+      socket.emit("world-event", event);
+    }
 
     socket.on("move", ({ dx, dy }: { dx: number; dy: number }) => {
       if (!entity) return;

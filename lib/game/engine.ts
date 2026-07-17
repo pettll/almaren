@@ -113,6 +113,25 @@ class WorldEngine extends EventEmitter {
     return event;
   }
 
+  // Chat itself is ephemeral (broadcast-only, see emitEvent above), but
+  // every message is persisted to ChatMessage as it's sent — this just
+  // reads that back, so newly-connected clients (socket or REST) aren't
+  // starting from a blank chat log.
+  async recentChat(limit = 20): Promise<WorldEvent[]> {
+    const rows = await prisma.chatMessage.findMany({
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      include: { entity: true },
+    });
+    return rows.reverse().map((row) => ({
+      type: "chat",
+      entityId: row.entityId,
+      name: row.entity.name,
+      content: row.content,
+      createdAt: row.createdAt.getTime(),
+    }));
+  }
+
   async placeTile(x: number, y: number, terrain: string) {
     if (x < 0 || x >= WORLD_WIDTH || y < 0 || y >= WORLD_HEIGHT) return null;
 

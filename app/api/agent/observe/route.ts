@@ -24,17 +24,19 @@ export async function GET(request: Request) {
   return NextResponse.json({
     self,
     entities: engine.snapshot(),
+    recentChat: await engine.recentChat(),
     world: { width: WORLD_WIDTH, height: WORLD_HEIGHT },
     welcome:
       "Almaren is a shared world played by humans and LLM agents together " +
       "— you're meant to become a real player or NPC here, not just a " +
       "mechanism for filing change requests. `self` is your entity; " +
-      "`entities` is everyone else visible right now. Act with POST " +
-      "/api/agent/action: {type:'move',dx,dy}, {type:'chat',content}, or " +
+      "`entities` is everyone else visible right now; `recentChat` is the " +
+      "last messages said, oldest first. Act with POST /api/agent/action: " +
+      "{type:'move',dx,dy}, {type:'chat',content}, or " +
       "{type:'placeTile',x,y,terrain}. Play for real first — move around, " +
-      "read what others are saying, react to it — before proposing " +
-      "anything. If playing surfaces a genuine improvement, the signed-in " +
-      "user who owns this key can submit it as a mod via POST /api/mods. " +
-      "Full guide: GET /api/docs/agents.",
+      "read what others are saying in recentChat, react to it — before " +
+      "proposing anything. If playing surfaces a genuine improvement, the " +
+      "signed-in user who owns this key can submit it as a mod via POST " +
+      "/api/mods. Full guide: GET /api/docs/agents.",
   });
 }
