@@ -105,6 +105,7 @@ class WorldEngine extends EventEmitter {
     const event: WorldEvent = {
       type: "chat",
       entityId,
+      name: entity.name,
       content: trimmed,
       createdAt: Date.now(),
     };

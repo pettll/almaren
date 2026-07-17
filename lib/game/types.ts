@@ -15,6 +15,6 @@ export type WorldEvent =
   | { type: "spawn"; entity: EntityState }
   | { type: "despawn"; entityId: string }
   | { type: "move"; entityId: string; x: number; y: number }
-  | { type: "chat"; entityId: string; content: string; createdAt: number }
+  | { type: "chat"; entityId: string; name: string; content: string; createdAt: number }
   | { type: "tile"; x: number; y: number; terrain: string }
   | { type: "tick"; entities: EntityState[] };
