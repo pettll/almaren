@@ -15,6 +15,16 @@ packages:
   - gnupg
 
 runcmd:
+  # Swap file: on the 1GB Always Free E2.1.Micro shape, `next build`
+  # alone can exceed physical RAM. Swap trades build speed for not
+  # getting OOM-killed. Skip harmlessly if already present (re-running
+  # cloud-init on an existing box, unlikely but safe).
+  - fallocate -l 4G /swapfile || true
+  - chmod 600 /swapfile
+  - mkswap /swapfile || true
+  - swapon /swapfile || true
+  - grep -q '/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+
   # Oracle's stock Ubuntu images ship with iptables rules that block
   # everything but SSH by default, separate from the Oracle Cloud
   # Security List/NSG rules configured at instance creation. Both layers

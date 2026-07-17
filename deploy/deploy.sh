@@ -41,6 +41,10 @@ fi
 echo "==> Applying database migrations"
 sudo -u almaren -H bash -c "cd '$APP_DIR' && npx prisma migrate deploy"
 
+echo "==> Building (production mode needs a prior 'next build'; on small"
+echo "    instances this leans on the swap file from cloud-init)"
+sudo -u almaren -H bash -c "cd '$APP_DIR' && npm run build"
+
 echo "==> Configuring Caddy (automatic HTTPS via sslip.io)"
 PUBLIC_IP="$(curl -fsSL ifconfig.me)"
 DOMAIN="$(echo "$PUBLIC_IP" | tr '.' '-').sslip.io"

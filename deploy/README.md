@@ -1,12 +1,19 @@
 # Deploying Almaren (Oracle Cloud Always Free)
 
-This deploys Almaren to a single Oracle Cloud "Always Free" Ampere A1
-instance with Caddy handling automatic HTTPS (via a free
-[sslip.io](https://sslip.io) hostname, so no domain purchase is required).
+This deploys Almaren to a single Oracle Cloud "Always Free" instance with
+Caddy handling automatic HTTPS (via a free [sslip.io](https://sslip.io)
+hostname, so no domain purchase is required).
 
-Cost: $0/month as long as the instance stays within Always Free limits
-(2 OCPU / 12GB RAM total, 200GB storage) — see the repo's project
-history/discussion for the tradeoffs of this plan versus alternatives.
+Cost: $0/month as long as the instance stays within Always Free limits.
+
+**Which shape you get depends on region capacity at signup time.**
+`VM.Standard.A1.Flex` (Ampere, ARM, up to 2 OCPU/12GB) is the better
+option if it's available in your region — Ampere capacity is often
+exhausted in popular regions, in which case the console will only offer
+`VM.Standard.E2.1.Micro` (AMD, ⅛ OCPU burstable, 1GB RAM). Both are
+Always Free and both work with this setup: `cloud-init.yaml` provisions a
+4GB swap file so `next build` doesn't get OOM-killed on the 1GB shape —
+it'll just be considerably slower to build/deploy than on Ampere.
 
 ## 1. Create the Oracle Cloud account
 
@@ -20,9 +27,13 @@ account; see [oracle.com/cloud/free](https://www.oracle.com/cloud/free/)).
 ## 2. Create the instance
 
 - **Name**: `almaren`
-- **Image**: Canonical Ubuntu (latest LTS)
-- **Shape**: `VM.Standard.A1.Flex` — set 2 OCPU / 12GB memory (the full
-  Always Free Ampere allotment)
+- **Shape**: `VM.Standard.A1.Flex` (2 OCPU / 12GB) if available in any
+  availability domain in your region; otherwise the only Always
+  Free-eligible fallback is `VM.Standard.E2.1.Micro`
+- **Image**: Canonical Ubuntu 24.04 Minimal — the **aarch64** build if
+  you got the Ampere shape, the regular (x86_64) build if you're on
+  E2.1.Micro. Picking the wrong architecture here means the instance
+  won't boot correctly.
 - **Networking**: use the default VCN/subnet, "Assign a public IPv4
   address" checked
 - **Add SSH keys**: paste the contents of `~/.ssh/almaren-oracle.pub`
