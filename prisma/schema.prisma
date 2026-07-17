@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// --- Auth.js (NextAuth) models ---------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+
+  isGuest   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  accounts Account[]
+  sessions Session[]
+  apiKeys  ApiKey[]
+  entities Entity[]
+  mods     Mod[]
+  messages ChatMessage[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// --- Agent access -------------------------------------------------------
+
+// API key issued to a user so their own LLM (bring-your-own-key or webhook
+// agent) can authenticate against /api/agent/* and act as one of their
+// entities in the world.
+model ApiKey {
+  id         String    @id @default(cuid())
+  key        String    @unique // hashed at rest, never stored in plaintext
+  label      String?
+  userId     String
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// --- World state ---------------------------------------------------------
+
+// A player, agent, or NPC in the world. One User can own multiple entities
+// (e.g. a human avatar and a separate LLM-driven agent).
+model Entity {
+  id        String   @id @default(cuid())
+  ownerId   String
+  kind      String   // "player" | "agent" | "npc" | "object"
+  name      String
+  x         Int      @default(0)
+  y         Int      @default(0)
+  data      String   @default("{}") // freeform JSON blob for kind-specific state
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner    User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  messages ChatMessage[]
+
+  @@index([x, y])
+}
+
+model Tile {
+  id        String   @id @default(cuid())
+  x         Int
+  y         Int
+  terrain   String   @default("grass")
+  data      String   @default("{}")
+  updatedAt DateTime @updatedAt
+
+  @@unique([x, y])
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+
+  entityId String
+  userId   String
+
+  entity Entity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+}
+
+// --- Mods (LLM/player-submitted rule changes) -----------------------------
+
+model Mod {
+  id          String   @id @default(cuid())
+  authorId    String
+  name        String
+  description String   @default("")
+  code        String   // sandboxed mod source, never eval'd directly
+  status      String   @default("pending") // "pending" | "approved" | "rejected" | "active"
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}
