@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db/client";
+import { spawnEntityForUser } from "@/lib/game/entities";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
@@ -13,6 +14,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientSecret: process.env.GITHUB_SECRET,
     }),
   ],
+  events: {
+    async createUser({ user }) {
+      await spawnEntityForUser(user.id, user.name ?? "Player");
+    },
+  },
   callbacks: {
     async session({ session, user }) {
       if (session.user) {
