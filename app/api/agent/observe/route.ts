@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { resolveApiKeyFromHeaders } from "@/lib/auth/api-key";
 import { engine } from "@/lib/game/engine";
-import { WORLD_HEIGHT, WORLD_WIDTH } from "@/lib/game/world";
+import { VALID_TERRAIN, WORLD_HEIGHT, WORLD_WIDTH } from "@/lib/game/world";
 
 // GET /api/agent/observe — a stateless "what does the world look like right
 // now" call, so an LLM-driven agent can decide its next action without
@@ -33,7 +33,8 @@ export async function GET(request: Request) {
       "`entities` is everyone else visible right now; `recentChat` is the " +
       "last messages said, oldest first. Act with POST /api/agent/action: " +
       "{type:'move',dx,dy}, {type:'chat',content}, or " +
-      "{type:'placeTile',x,y,terrain}. Play for real first — move around, " +
+      `{type:'placeTile',x,y,terrain}, terrain one of ${VALID_TERRAIN.join(", ")}. ` +
+      "Play for real first — move around, " +
       "read what others are saying in recentChat, react to it — before " +
       "proposing anything. If playing surfaces a genuine improvement, the " +
       "signed-in user who owns this key can submit it as a mod via POST " +

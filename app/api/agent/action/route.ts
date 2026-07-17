@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { resolveApiKeyFromHeaders } from "@/lib/auth/api-key";
 import { engine } from "@/lib/game/engine";
+import { VALID_TERRAIN } from "@/lib/game/world";
 
 const actionSchema = z.discriminatedUnion("type", [
   z.object({
@@ -14,7 +15,7 @@ const actionSchema = z.discriminatedUnion("type", [
     type: z.literal("placeTile"),
     x: z.number().int(),
     y: z.number().int(),
-    terrain: z.string().min(1).max(40),
+    terrain: z.enum(VALID_TERRAIN),
   }),
 ]);
 

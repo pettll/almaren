@@ -2,7 +2,14 @@ import { EventEmitter } from "node:events";
 import { prisma } from "@/lib/db/client";
 import { loadAllEntities, persistEntityPosition } from "./entities";
 import type { EntityKind, EntityState, WorldEvent } from "./types";
-import { clamp, MAX_CHAT_LENGTH, TICK_MS, WORLD_HEIGHT, WORLD_WIDTH } from "./world";
+import {
+  clamp,
+  MAX_CHAT_LENGTH,
+  TICK_MS,
+  VALID_TERRAIN,
+  WORLD_HEIGHT,
+  WORLD_WIDTH,
+} from "./world";
 
 class WorldEngine extends EventEmitter {
   private entities = new Map<string, EntityState>();
@@ -134,6 +141,7 @@ class WorldEngine extends EventEmitter {
 
   async placeTile(x: number, y: number, terrain: string) {
     if (x < 0 || x >= WORLD_WIDTH || y < 0 || y >= WORLD_HEIGHT) return null;
+    if (!(VALID_TERRAIN as readonly string[]).includes(terrain)) return null;
 
     await prisma.tile.upsert({
       where: { x_y: { x, y } },
