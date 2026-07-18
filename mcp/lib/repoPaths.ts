@@ -43,13 +43,36 @@ export function resolveScopedPath(repoRoot: string, relativePath: string): strin
   }
 
   try {
-    const real = execFileSync("realpath", [absolute], { encoding: "utf8" }).trim();
+    const real = execFileSync("realpath", [absolute], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
     if (real !== absolute && !real.startsWith(repoRoot + sep)) {
       throw new Error(`path escapes the repo root via a symlink: ${relativePath}`);
     }
   } catch {
-    // realpath fails if the target doesn't exist yet (fine for a write
-    // target in proposeChange); the containment check above already ran.
+    // realpath fails (and would otherwise print to stderr) if the target
+    // doesn't exist yet, which is expected for a write target in
+    // proposeChange — the containment check above already ran regardless.
+  }
+
+  return absolute;
+}
+
+// Additional denylist for proposeChange's write path, on top of
+// resolveScopedPath's containment + always-denied checks: no legitimate
+// agent-authored PR needs to touch CI/branch-protection config or the
+// deploy script — a human changing those does it by hand.
+const WRITE_DENIED_PREFIXES = [".github" + sep, "deploy" + sep + "deploy.sh"];
+
+export function assertWritablePath(repoRoot: string, relativePath: string): string {
+  const absolute = resolveScopedPath(repoRoot, relativePath);
+  const relativeFromRoot = absolute.slice(repoRoot.length + 1);
+
+  for (const denied of WRITE_DENIED_PREFIXES) {
+    if (relativeFromRoot === denied.replace(/\/$/, "") || relativeFromRoot.startsWith(denied)) {
+      throw new Error(`this tool refuses to write to ${relativePath} — CI/deploy config changes must be made by hand`);
+    }
   }
 
   return absolute;
