@@ -62,6 +62,7 @@ export default function Page() {
   const [convertErrors, setConvertErrors] = useState<Record<string, string>>({});
   const socketRef = useRef<Socket | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const chatLogRef = useRef<HTMLDivElement | null>(null);
 
   const dismissHelp = useCallback(() => {
     localStorage.setItem("almaren-help-dismissed", "1");
@@ -170,6 +171,12 @@ export default function Page() {
       ctx.fill();
     }
   }, [entities, selfEntityId]);
+
+  useEffect(() => {
+    const log = chatLogRef.current;
+    if (!log) return;
+    log.scrollTop = log.scrollHeight;
+  }, [messages]);
 
   const sendChat = useCallback(() => {
     const content = chatInput.trim();
@@ -319,7 +326,10 @@ export default function Page() {
           />
 
           <div style={{ display: "flex", flexDirection: "column", width: 280, height: WORLD_HEIGHT * TILE_PX }}>
-            <div style={{ flex: 1, overflowY: "auto", border: "1px solid #2a3244", padding: 8, fontSize: 13 }}>
+            <div
+              ref={chatLogRef}
+              style={{ flex: 1, overflowY: "auto", border: "1px solid #2a3244", padding: 8, fontSize: 13 }}
+            >
               {messages.map((message) => (
                 <div key={message.id}>
                   <strong>{message.name}:</strong> {message.content}
