@@ -55,6 +55,25 @@ export function resolveScopedPath(repoRoot: string, relativePath: string): strin
   return absolute;
 }
 
+// Additional denylist for proposeChange's write path, on top of
+// resolveScopedPath's containment + always-denied checks: no legitimate
+// agent-authored PR needs to touch CI/branch-protection config or the
+// deploy script — a human changing those does it by hand.
+const WRITE_DENIED_PREFIXES = [".github" + sep, "deploy" + sep + "deploy.sh"];
+
+export function assertWritablePath(repoRoot: string, relativePath: string): string {
+  const absolute = resolveScopedPath(repoRoot, relativePath);
+  const relativeFromRoot = absolute.slice(repoRoot.length + 1);
+
+  for (const denied of WRITE_DENIED_PREFIXES) {
+    if (relativeFromRoot === denied.replace(/\/$/, "") || relativeFromRoot.startsWith(denied)) {
+      throw new Error(`this tool refuses to write to ${relativePath} — CI/deploy config changes must be made by hand`);
+    }
+  }
+
+  return absolute;
+}
+
 export function assertRegularFileUnderLimit(absolutePath: string, maxBytes: number): void {
   const stats = statSync(absolutePath);
   if (!stats.isFile()) {
