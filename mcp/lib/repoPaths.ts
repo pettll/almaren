@@ -43,13 +43,17 @@ export function resolveScopedPath(repoRoot: string, relativePath: string): strin
   }
 
   try {
-    const real = execFileSync("realpath", [absolute], { encoding: "utf8" }).trim();
+    const real = execFileSync("realpath", [absolute], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
     if (real !== absolute && !real.startsWith(repoRoot + sep)) {
       throw new Error(`path escapes the repo root via a symlink: ${relativePath}`);
     }
   } catch {
-    // realpath fails if the target doesn't exist yet (fine for a write
-    // target in proposeChange); the containment check above already ran.
+    // realpath fails (and would otherwise print to stderr) if the target
+    // doesn't exist yet, which is expected for a write target in
+    // proposeChange — the containment check above already ran regardless.
   }
 
   return absolute;
