@@ -14,24 +14,39 @@ import {
 const CHAT_RATE_LIMIT = 5;
 const CHAT_RATE_WINDOW_MS = 10_000;
 
+// placeTile had neither a rate limit nor any check that the tile was
+// anywhere near the acting entity — confirmed live by three agents
+// independently playing the same session: one placed a tile 50+ tiles
+// from its own position in a single instant call. MAX_PLACE_TILE_DISTANCE
+// is Chebyshev distance (matches move's own single-tile-per-call model
+// while still allowing the small multi-tile structures agents have
+// already been building — e.g. a sand-ringed pond — from one spot).
+const TILE_RATE_LIMIT = 5;
+const TILE_RATE_WINDOW_MS = 10_000;
+const MAX_PLACE_TILE_DISTANCE = 3;
+
 class WorldEngine extends EventEmitter {
   private entities = new Map<string, EntityState>();
   private dirty = new Set<string>();
   private tickTimer: ReturnType<typeof setInterval> | null = null;
   private loadPromise: Promise<void> | null = null;
   private chatTimestamps = new Map<string, number[]>();
+  private tileTimestamps = new Map<string, number[]>();
 
-  private isChatRateLimited(entityId: string): boolean {
+  private isRateLimited(
+    timestamps: Map<string, number[]>,
+    entityId: string,
+    limit: number,
+    windowMs: number,
+  ): boolean {
     const now = Date.now();
-    const recent = (this.chatTimestamps.get(entityId) ?? []).filter(
-      (t) => now - t < CHAT_RATE_WINDOW_MS,
-    );
-    if (recent.length >= CHAT_RATE_LIMIT) {
-      this.chatTimestamps.set(entityId, recent);
+    const recent = (timestamps.get(entityId) ?? []).filter((t) => now - t < windowMs);
+    if (recent.length >= limit) {
+      timestamps.set(entityId, recent);
       return true;
     }
     recent.push(now);
-    this.chatTimestamps.set(entityId, recent);
+    timestamps.set(entityId, recent);
     return false;
   }
 
@@ -123,7 +138,9 @@ class WorldEngine extends EventEmitter {
     const trimmed = content.trim().slice(0, MAX_CHAT_LENGTH);
     if (!trimmed) return null;
 
-    if (this.isChatRateLimited(entityId)) return "rate_limited" as const;
+    if (this.isRateLimited(this.chatTimestamps, entityId, CHAT_RATE_LIMIT, CHAT_RATE_WINDOW_MS)) {
+      return "rate_limited" as const;
+    }
 
     await prisma.chatMessage.create({
       data: { entityId, userId, content: trimmed },
@@ -159,9 +176,19 @@ class WorldEngine extends EventEmitter {
     }));
   }
 
-  async placeTile(x: number, y: number, terrain: string) {
+  async placeTile(entityId: string, x: number, y: number, terrain: string) {
+    const entity = this.entities.get(entityId);
+    if (!entity) return null;
+
     if (x < 0 || x >= WORLD_WIDTH || y < 0 || y >= WORLD_HEIGHT) return null;
     if (!(VALID_TERRAIN as readonly string[]).includes(terrain)) return null;
+
+    const distance = Math.max(Math.abs(x - entity.x), Math.abs(y - entity.y));
+    if (distance > MAX_PLACE_TILE_DISTANCE) return "too_far" as const;
+
+    if (this.isRateLimited(this.tileTimestamps, entityId, TILE_RATE_LIMIT, TILE_RATE_WINDOW_MS)) {
+      return "rate_limited" as const;
+    }
 
     await prisma.tile.upsert({
       where: { x_y: { x, y } },
@@ -176,6 +203,7 @@ class WorldEngine extends EventEmitter {
 
   removeEntity(entityId: string) {
     this.chatTimestamps.delete(entityId);
+    this.tileTimestamps.delete(entityId);
     if (this.entities.delete(entityId)) {
       this.emitEvent({ type: "despawn", entityId });
     }
