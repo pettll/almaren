@@ -63,7 +63,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, event });
     }
     case "placeTile": {
-      const event = await engine.placeTile(action.x, action.y, action.terrain);
+      const event = await engine.placeTile(self.id, action.x, action.y, action.terrain);
+      if (event === "rate_limited") {
+        return NextResponse.json(
+          { error: "rate limited, slow down" },
+          { status: 429 },
+        );
+      }
+      if (event === "too_far") {
+        return NextResponse.json(
+          { error: "tile is too far from your current position" },
+          { status: 400 },
+        );
+      }
       return NextResponse.json({ ok: true, event });
     }
   }

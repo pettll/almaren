@@ -61,7 +61,13 @@ async function main() {
         socket.emit("world-event", { type: "error", message: "placeTile out of bounds" });
         return;
       }
-      void engine.placeTile(clampedX, clampedY, terrain);
+      void engine.placeTile(entity.id, clampedX, clampedY, terrain).then((result) => {
+        if (result === "rate_limited") {
+          socket.emit("world-event", { type: "error", message: "rate limited, slow down" });
+        } else if (result === "too_far") {
+          socket.emit("world-event", { type: "error", message: "tile is too far from your current position" });
+        }
+      });
     });
   });
 
