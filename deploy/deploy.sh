@@ -51,11 +51,21 @@ echo "==> Building (production mode needs a prior 'next build'; on small"
 echo "    instances this leans on the swap file from cloud-init)"
 sudo -u almaren -H bash -c "cd '$APP_DIR' && npm run build"
 
-echo "==> Configuring Caddy (automatic HTTPS via sslip.io)"
-PUBLIC_IP="$(curl -fsSL ifconfig.me)"
-DOMAIN="$(echo "$PUBLIC_IP" | tr '.' '-').sslip.io"
-sed "s/{DOMAIN}/$DOMAIN/" "$APP_DIR/deploy/Caddyfile.template" > /etc/caddy/Caddyfile
-systemctl reload caddy || systemctl restart caddy
+if [ -f /etc/caddy/Caddyfile ]; then
+  # The instance's public IP never changes after the first deploy, so
+  # skip re-fetching it (and re-hitting an external network dependency)
+  # on every re-run. A previous deploy hung here for its full 10-minute
+  # SSH command budget when ifconfig.me was slow to respond, well after
+  # the expensive npm install/build steps had already completed.
+  echo "==> Caddy already configured, skipping"
+  DOMAIN="$(grep -oE '^\S+\.sslip\.io' /etc/caddy/Caddyfile || echo "(see /etc/caddy/Caddyfile)")"
+else
+  echo "==> Configuring Caddy (automatic HTTPS via sslip.io)"
+  PUBLIC_IP="$(curl -fsSL --max-time 10 ifconfig.me)"
+  DOMAIN="$(echo "$PUBLIC_IP" | tr '.' '-').sslip.io"
+  sed "s/{DOMAIN}/$DOMAIN/" "$APP_DIR/deploy/Caddyfile.template" > /etc/caddy/Caddyfile
+  systemctl reload caddy || systemctl restart caddy
+fi
 
 echo "==> Installing systemd service"
 cp "$APP_DIR/deploy/almaren.service" /etc/systemd/system/almaren.service
